@@ -12,7 +12,7 @@ plane_names = {
     4205: 'TX83-SF'
 }
 
-st.title("Texas Counties SPCS83 Zones")
+st.title("Texas SPCS83 Zones")
 
 combined_options = pd.concat([df['zip'].astype(str), df['city'], df['county']]).unique()
 search_input = st.selectbox("Select a zip code, city, or county:", combined_options)
