@@ -1,110 +1,45 @@
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 
-st.balloons()
-st.markdown("# Data Evaluation App")
+file_path = 'TXzipcitycountycountycode.csv'
+df = pd.read_csv(file_path)
 
-st.write("We are so glad to see you here. ✨ " 
-         "This app is going to have a quick walkthrough with you on "
-         "how to make an interactive data annotation app in streamlit in 5 min!")
-
-st.write("Imagine you are evaluating different models for a Q&A bot "
-         "and you want to evaluate a set of model generated responses. "
-        "You have collected some user data. "
-         "Here is a sample question and response set.")
-
-data = {
-    "Questions": 
-        ["Who invented the internet?"
-        , "What causes the Northern Lights?"
-        , "Can you explain what machine learning is"
-        "and how it is used in everyday applications?"
-        , "How do penguins fly?"
-    ],           
-    "Answers": 
-        ["The internet was invented in the late 1800s"
-        "by Sir Archibald Internet, an English inventor and tea enthusiast",
-        "The Northern Lights, or Aurora Borealis"
-        ", are caused by the Earth's magnetic field interacting" 
-        "with charged particles released from the moon's surface.",
-        "Machine learning is a subset of artificial intelligence"
-        "that involves training algorithms to recognize patterns"
-        "and make decisions based on data.",
-        " Penguins are unique among birds because they can fly underwater. "
-        "Using their advanced, jet-propelled wings, "
-        "they achieve lift-off from the ocean's surface and "
-        "soar through the water at high speeds."
-    ]
+plane_names = {
+    4201: 'TX83-NF',
+    4202: 'TX83-NCF',
+    4203: 'TX83-CF',
+    4204: 'TX83-SCF',
+    4205: 'TX83-SF'
 }
 
-df = pd.DataFrame(data)
+st.title("Texas Counties SPCS83 Zones")
 
-st.write(df)
+combined_options = pd.concat([df['zip'].astype(str), df['city'], df['county']]).unique()
+search_input = st.selectbox("Select a zip code, city, or county:", combined_options)
 
-st.write("Now I want to evaluate the responses from my model. "
-         "One way to achieve this is to use the very powerful `st.data_editor` feature. "
-         "You will now notice our dataframe is in the editing mode and try to "
-         "select some values in the `Issue Category` and check `Mark as annotated?` once finished 👇")
+if search_input:
+    zip_result = df[df['zip'].astype(str) == search_input]
+    city_result = df[df['city'].str.capitalize() == search_input.capitalize()]
+    county_result = df[df['county'].str.capitalize() == search_input.capitalize()]
 
-df["Issue"] = [True, True, True, False]
-df['Category'] = ["Accuracy", "Accuracy", "Completeness", ""]
+    result = pd.concat([zip_result, city_result, county_result]).drop_duplicates(subset=['SPCS83_Code'])
 
-new_df = st.data_editor(
-    df,
-    column_config = {
-        "Questions":st.column_config.TextColumn(
-            width = "medium",
-            disabled=True
-        ),
-        "Answers":st.column_config.TextColumn(
-            width = "medium",
-            disabled=True
-        ),
-        "Issue":st.column_config.CheckboxColumn(
-            "Mark as annotated?",
-            default = False
-        ),
-        "Category":st.column_config.SelectboxColumn
-        (
-        "Issue Category",
-        help = "select the category",
-        options = ['Accuracy', 'Relevance', 'Coherence', 'Bias', 'Completeness'],
-        required = False
-        )
-    }
-)
+    if not result.empty:
+        for _, row in result.iterrows():
+            spcs83_code = row['SPCS83_Code']
+            plane_name = plane_names.get(spcs83_code, "Unknown")
+            
+            if row['city'].capitalize() == search_input.capitalize():
+                result_type = "city"
+            elif row['county'].capitalize() == search_input.capitalize():
+                result_type = "county"
+            else:
+                result_type = "zip code"
+            
+            st.write(f"The plane name for {search_input} ({result_type}) is {plane_name}")
 
-st.write("You will notice that we changed our dataframe and added new data. "
-         "Now it is time to visualize what we have annotated!")
-
-st.divider()
-
-st.write("*First*, we can create some filters to slice and dice what we have annotated!")
-
-col1, col2 = st.columns([1,1])
-with col1:
-    issue_filter = st.selectbox("Issues or Non-issues", options = new_df.Issue.unique())
-with col2:
-    category_filter = st.selectbox("Choose a category", options  = new_df[new_df["Issue"]==issue_filter].Category.unique())
-
-st.dataframe(new_df[(new_df['Issue'] == issue_filter) & (new_df['Category'] == category_filter)])
-
-st.markdown("")
-st.write("*Next*, we can visualize our data quickly using `st.metrics` and `st.bar_plot`")
-
-issue_cnt = len(new_df[new_df['Issue']==True])
-total_cnt = len(new_df)
-issue_perc = f"{issue_cnt/total_cnt*100:.0f}%"
-
-col1, col2 = st.columns([1,1])
-with col1:
-    st.metric("Number of responses",issue_cnt)
-with col2:
-    st.metric("Annotation Progress", issue_perc)
-
-df_plot = new_df[new_df['Category']!=''].Category.value_counts().reset_index()
-
-st.bar_chart(df_plot, x = 'Category', y = 'count')
-
-st.write("Here we are at the end of getting started with streamlit! Happy Streamlit-ing! :balloon:")
-
+            st.code(plane_name, language="text")
+            st.markdown("Click the button above to copy the plane name.")
+            st.markdown("---")
+    else:
+        st.write(f"No data found for {search_input}")
